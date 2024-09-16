@@ -25,16 +25,13 @@
       }
       button {
         cursor: pointer;
-        background-color: #4CAF50;
+        background-color: #4caf50;
         color: white;
         border: none;
         border-radius: 4px;
       }
       button:hover {
         background-color: #45a049;
-      }
-      #result {
-        margin-top: 20px;
       }
       table {
         width: 100%;
@@ -57,6 +54,9 @@
       .error {
         color: red;
         font-weight: bold;
+      }
+      .supported-chains {
+        margin-top: 20px;
       }
     </style>
   </head>
@@ -82,16 +82,30 @@
         }
 
         try {
-          const response = await fetch(`/api/transactions/${address}/${chainId}`);
+          const response = await fetch(
+            `/api/transactions?address=${encodeURIComponent(
+              address
+            )}&chainId=${encodeURIComponent(chainId)}`
+          );
           const data = await response.json();
 
           if (data.error) {
-            resultDiv.innerHTML = `<p class="error">Error: ${data.error}</p>`;
+            let errorMessage = `<p class="error">Error: ${data.error}</p>`;
             if (data.details) {
-              resultDiv.innerHTML += `<p class="error">Details: ${data.details}</p>`;
+              errorMessage += `<p class="error">Details: ${data.details}</p>`;
             }
+            if (data.supportedChains) {
+              errorMessage += `<p class="supported-chains">Supported chains:</p><ul>`;
+              data.supportedChains.forEach((chain) => {
+                errorMessage += `<li>${chain}</li>`;
+              });
+              errorMessage += `</ul>`;
+            }
+            resultDiv.innerHTML = errorMessage;
             return;
           }
+
+          const { transactions, chainInfo } = data;
 
           let tableHtml = `
                     <table>
@@ -99,24 +113,24 @@
                             <th>Tx Hash</th>
                             <th>From</th>
                             <th>To</th>
-                            <th>Value (ETH)</th>
+                            <th>Value (${chainInfo.symbol})</th>
                             <th>Value (USD)</th>
-                            <th>Gas Spent (ETH)</th>
-                            <th>Gas Spent (USD)</th>
+                            <th>Fee (${chainInfo.symbol})</th>
+                            <th>Fee (USD)</th>
                             <th>Block Signed At</th>
                         </tr>
                 `;
 
-          data.forEach((tx) => {
+          transactions.forEach((tx) => {
             tableHtml += `
                         <tr>
                             <td>${tx.txHash}</td>
                             <td>${tx.from}</td>
                             <td>${tx.to}</td>
-                            <td>${tx.valueEth}</td>
-                            <td>${tx.valueUsd}</td>
-                            <td>${tx.gasSpentEth}</td>
-                            <td>${tx.gasSpentUsd}</td>
+                            <td>${tx.valueNative} ${chainInfo.symbol}</td>
+                            <td>$${tx.valueUsd}</td>
+                            <td>${tx.feeNative} ${chainInfo.symbol}</td>
+                            <td>$${tx.feeUsd}</td>
                             <td>${tx.blockSignedAt}</td>
                         </tr>
                     `;
