@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction Lookup</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      input,
+      button {
+        margin: 10px 0;
+        padding: 5px;
+      }
+      #result {
+        white-space: pre-wrap;
+        background-color: #f0f0f0;
+        padding: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Transaction Lookup</h1>
+    <input type="text" id="address" placeholder="Enter address" />
+    <input type="text" id="chainId" placeholder="Enter chain ID" />
+    <button onclick="getTransactions()">Get Transactions</button>
+    <div id="result"></div>
+
+    <script>
+      async function getTransactions() {
+        const address = document.getElementById("address").value;
+        const chainId = document.getElementById("chainId").value;
+        const resultDiv = document.getElementById("result");
+
+        if (!address || !chainId) {
+          resultDiv.textContent = "Please enter both address and chain ID.";
+          return;
+        }
+
+        try {
+          const response = await fetch(`/transactions/${address}/${chainId}`);
+          const data = await response.json();
+
+          if (data.error) {
+            resultDiv.textContent = `Error: ${data.error}`;
+            return;
+          }
+
+          let tableHtml = `
+                    <table>
+                        <tr>
+                            <th>Tx Hash</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Value (ETH)</th>
+                            <th>Value (USD)</th>
+                            <th>Gas Spent (ETH)</th>
+                            <th>Gas Spent (USD)</th>
+                            <th>Block Signed At</th>
+                        </tr>
+                `;
+
+          data.forEach((tx) => {
+            tableHtml += `
+                        <tr>
+                            <td>${tx.txHash}</td>
+                            <td>${tx.from}</td>
+                            <td>${tx.to}</td>
+                            <td>${tx.valueEth}</td>
+                            <td>${tx.valueUsd}</td>
+                            <td>${tx.gasSpentEth}</td>
+                            <td>${tx.gasSpentUsd}</td>
+                            <td>${tx.blockSignedAt}</td>
+                        </tr>
+                    `;
+          });
+
+          tableHtml += "</table>";
+          resultDiv.innerHTML = tableHtml;
+        } catch (error) {
+          resultDiv.textContent = `Error: ${error.message}`;
+        }
+      }
+    </script>
+  </body>
+</html>
