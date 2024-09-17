@@ -2,9 +2,11 @@
   "name": "your-project-name",
   "version": "1.0.0",
   "dependencies": {
-    "express": "^4.17.1",
-    "axios": "^0.21.1",
-    "dotenv": "^10.0.0"
+    "@chainlink/contracts": "^1.2.0",
+    "axios": "^0.21.4",
+    "dotenv": "^10.0.0",
+    "ethers": "^6.13.2",
+    "express": "^4.21.0"
   },
   "scripts": {
     "start": "node api/transactions.js",
