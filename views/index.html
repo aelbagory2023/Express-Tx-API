@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Transaction History (24hr)</title>
+    <title>Transaction History</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -43,31 +43,32 @@
     </style>
   </head>
   <body>
-    <h1>Transaction History (24hr)</h1>
+    <h1>Transaction History</h1>
 
     <div id="search">
-      <select id="chainId">
-        <option value="1">Ethereum</option>
-        <option value="56">Binance Smart Chain</option>
-        <option value="137">Polygon</option>
-        <!-- Add more chains as needed -->
-      </select>
       <input
         type="text"
         id="walletAddressInput"
         placeholder="Enter wallet address"
       />
+      <select id="timeFrame">
+        <option value="24h">Last 24 Hours</option>
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+        <option value="1y">Last Year</option>
+      </select>
       <button onclick="searchTransactions()">Search Transactions</button>
-      <div id="loading" style="display: none">Loading...</div>
     </div>
-
+    <div id="loading" style="display: none">Loading...</div>
     <div id="result"></div>
 
     <script>
       async function searchTransactions() {
         const walletAddressInput =
           document.getElementById("walletAddressInput");
+        const timeFrameSelect = document.getElementById("timeFrame");
         const walletAddress = walletAddressInput.value.trim();
+        const timeFrame = timeFrameSelect.value;
 
         if (!walletAddress) {
           console.error("Please enter a wallet address");
@@ -77,10 +78,8 @@
 
         try {
           displayLoading(true);
-          // Add a timestamp to the URL to prevent caching
-          const timestamp = new Date().getTime();
           const response = await fetch(
-            `/api/wallet-history/${walletAddress}?_=${timestamp}`
+            `/api/wallet-history/${timeFrame}/${walletAddress}`
           );
           if (!response.ok) {
             const errorData = await response.json();
@@ -104,27 +103,40 @@
           resultDiv.innerHTML = `
             <h2>Transactions for ${data.address}</h2>
             <p>Total transactions: ${data.transactionCount}</p>
-            <ul>
-              ${data.transactions
-                .map(
-                  (tx) => `
-                <li>
-                  <strong>${tx.type} Transaction</strong><br>
-                  Hash: ${tx.hash}<br>
-                  From: ${tx.from}<br>
-                  To: ${tx.to}<br>
-                  Value: ${tx.valueETH.toFixed(6)} ETH ($${tx.valueUSD.toFixed(
-                    2
-                  )} USD)<br>
-                  Gas: ${tx.gasETH.toFixed(6)} ETH ($${tx.gasUSD.toFixed(
-                    2
-                  )} USD)<br>
-                  Timestamp: ${new Date(tx.timestamp).toLocaleString()}
-                </li>
-              `
-                )
-                .join("")}
-            </ul>
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Hash</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Value (ETH)</th>
+                  <th>Value (USD)</th>
+                  <th>Gas (ETH)</th>
+                  <th>Gas (USD)</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.transactions
+                  .map(
+                    (tx) => `
+                    <tr>
+                      <td>${tx.type}</td>
+                      <td>${tx.hash.substring(0, 10)}...</td>
+                      <td>${tx.from.substring(0, 10)}...</td>
+                      <td>${tx.to.substring(0, 10)}...</td>
+                      <td>${tx.valueETH.toFixed(6)}</td>
+                      <td>$${tx.valueUSD.toFixed(2)}</td>
+                      <td>${tx.gasETH.toFixed(6)}</td>
+                      <td>$${tx.gasUSD.toFixed(2)}</td>
+                      <td>${new Date(tx.timestamp).toLocaleString()}</td>
+                    </tr>
+                  `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
           `;
         } else {
           resultDiv.innerHTML = `<p>No transactions found for address ${data.address}</p>`;

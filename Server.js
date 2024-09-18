@@ -32,92 +32,161 @@ if (!MORALIS_API_KEY) {
   process.exit(1);
 }
 
-// API endpoint to fetch wallet history
-app.get("/api/wallet-history/:address", async (req, res) => {
-  const { address } = req.params;
+// Helper function to fetch and process transactions
+async function fetchAndProcessTransactions(address, fromDate) {
+  const fromTimestamp = fromDate.toISOString();
+  console.log(`Fetching transactions for ${address} from ${fromTimestamp}`);
 
-  try {
-    console.log(`Fetching wallet history for address: ${address}`);
-
-    const fromDate = moment().subtract(24, "hours");
-    const fromTimestamp = fromDate.toISOString();
-    console.log("From timestamp:", fromTimestamp);
-
-    const response = await axios.get(
-      `https://deep-index.moralis.io/api/v2.2/${address}`,
-      {
-        params: {
-          chain: "eth",
-          from_date: fromTimestamp,
-        },
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": MORALIS_API_KEY,
-        },
-      }
-    );
-
-    console.log(
-      "Moralis API response:",
-      JSON.stringify(response.data, null, 2)
-    );
-
-    // Fetch current ETH price in USD
-    const ethPriceResponse = await coinGeckoClient.simple.price({
-      ids: ["ethereum"],
-      vs_currencies: ["usd"],
-    });
-    const ethPriceUSD = ethPriceResponse.data.ethereum.usd;
-
-    // Process the data
-    let processedData = [];
-    if (
-      response.data &&
-      response.data.result &&
-      Array.isArray(response.data.result)
-    ) {
-      processedData = response.data.result.map((transaction) => {
-        const gasPrice = parseFloat(transaction.gas_price) / 1e18; // Convert wei to ether
-        const gasCostETH = gasPrice * parseFloat(transaction.gas);
-        const gasCostUSD = gasCostETH * ethPriceUSD;
-        const valueETH = parseFloat(transaction.value) / 1e18; // Convert wei to ether
-        const valueUSD = valueETH * ethPriceUSD;
-
-        // Determine if the transaction is incoming or outgoing
-        const type =
-          transaction.from_address.toLowerCase() === address.toLowerCase()
-            ? "Outgoing"
-            : "Incoming";
-
-        return {
-          hash: transaction.hash,
-          from: transaction.from_address,
-          to: transaction.to_address,
-          valueETH: parseFloat(valueETH),
-          valueUSD: parseFloat(valueUSD.toFixed(2)),
-          gasETH: parseFloat(gasCostETH.toFixed(6)),
-          gasUSD: parseFloat(gasCostUSD.toFixed(2)),
-          timestamp: transaction.block_timestamp,
-          type: type,
-        };
-      });
+  const response = await axios.get(
+    `https://deep-index.moralis.io/api/v2.2/${address}`,
+    {
+      params: {
+        chain: "eth",
+        from_date: fromTimestamp,
+        limit: 100,
+      },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": MORALIS_API_KEY,
+      },
     }
+  );
 
-    console.log("Processed data:", JSON.stringify(processedData, null, 2));
+  const ethPriceResponse = await coinGeckoClient.simple.price({
+    ids: ["ethereum"],
+    vs_currencies: ["usd"],
+  });
+  const ethPriceUSD = ethPriceResponse.data.ethereum.usd;
 
-    res.json({
-      address: address,
-      transactionCount: processedData.length,
-      transactions: processedData,
+  let processedData = [];
+  if (
+    response.data &&
+    response.data.result &&
+    Array.isArray(response.data.result)
+  ) {
+    processedData = response.data.result.map((transaction) => {
+      const gasPrice = parseFloat(transaction.gas_price) / 1e18; // Convert wei to ether
+      const gasCostETH = gasPrice * parseFloat(transaction.gas);
+      const gasCostUSD = gasCostETH * ethPriceUSD;
+      const valueETH = parseFloat(transaction.value) / 1e18; // Convert wei to ether
+      const valueUSD = valueETH * ethPriceUSD;
+
+      const type =
+        transaction.from_address.toLowerCase() === address.toLowerCase()
+          ? "Outgoing"
+          : "Incoming";
+
+      return {
+        hash: transaction.hash,
+        from: transaction.from_address,
+        to: transaction.to_address,
+        valueETH: parseFloat(valueETH),
+        valueUSD: parseFloat(valueUSD.toFixed(2)),
+        gasETH: parseFloat(gasCostETH.toFixed(6)),
+        gasUSD: parseFloat(gasCostUSD.toFixed(2)),
+        timestamp: transaction.block_timestamp,
+        type: type,
+      };
     });
+  }
+
+  return processedData;
+}
+
+// 24 hours endpoint
+app.get("/api/wallet-history/24h/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+    const fromDate = moment().subtract(24, "hours");
+    const transactions = await fetchAndProcessTransactions(address, fromDate);
+    res.json({ address, transactionCount: transactions.length, transactions });
   } catch (error) {
-    console.error(
-      "Error fetching wallet history:",
-      error.response?.data || error.message
-    );
+    console.error("Error fetching 24h wallet history:", error);
     res.status(500).json({
       error: "Failed to fetch wallet history",
-      details: error.response?.data || error.message,
+      details: error.message,
+    });
+  }
+});
+
+// 7 days endpoint
+app.get("/api/wallet-history/7d/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+    const fromDate = moment().subtract(7, "days");
+    const transactions = await fetchAndProcessTransactions(address, fromDate);
+    res.json({ address, transactionCount: transactions.length, transactions });
+  } catch (error) {
+    console.error("Error fetching 7d wallet history:", error);
+    res.status(500).json({
+      error: "Failed to fetch wallet history",
+      details: error.message,
+    });
+  }
+});
+
+// 30 days endpoint
+app.get("/api/wallet-history/30d/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+    const fromDate = moment().subtract(30, "days");
+    const transactions = await fetchAndProcessTransactions(address, fromDate);
+    res.json({ address, transactionCount: transactions.length, transactions });
+  } catch (error) {
+    console.error("Error fetching 30d wallet history:", error);
+    res.status(500).json({
+      error: "Failed to fetch wallet history",
+      details: error.message,
+    });
+  }
+});
+
+// 1 year endpoint
+app.get("/api/wallet-history/1y/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+    const fromDate = moment().subtract(1, "year");
+    const transactions = await fetchAndProcessTransactions(address, fromDate);
+    res.json({ address, transactionCount: transactions.length, transactions });
+  } catch (error) {
+    console.error("Error fetching 1y wallet history:", error);
+    res.status(500).json({
+      error: "Failed to fetch wallet history",
+      details: error.message,
+    });
+  }
+});
+
+// Unified endpoint for different timeframes
+app.get("/api/wallet-history/:timeframe/:address", async (req, res) => {
+  const { timeframe, address } = req.params;
+  let fromDate;
+
+  switch (timeframe) {
+    case "24h":
+      fromDate = moment().subtract(24, "hours");
+      break;
+    case "7d":
+      fromDate = moment().subtract(7, "days");
+      break;
+    case "30d":
+      fromDate = moment().subtract(30, "days");
+      break;
+    case "1y":
+      fromDate = moment().subtract(1, "year");
+      break;
+    default:
+      return res.status(400).json({ error: "Invalid timeframe" });
+  }
+
+  try {
+    const transactions = await fetchAndProcessTransactions(address, fromDate);
+    res.json({ address, transactionCount: transactions.length, transactions });
+  } catch (error) {
+    console.error(`Error fetching ${timeframe} wallet history:`, error);
+    res.status(500).json({
+      error: "Failed to fetch wallet history",
+      details: error.message,
     });
   }
 });
@@ -132,7 +201,7 @@ const fetchAssets = async (address) => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": process.env.MORALIS_API_KEY,
+            "X-API-Key": MORALIS_API_KEY,
           },
         }
       );
