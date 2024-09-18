@@ -71,7 +71,6 @@ app.get("/api/wallet-history/:address", async (req, res) => {
 
     // Process the data
     let processedData = [];
-<<<<<<< HEAD
     if (
       response.data &&
       response.data.result &&
@@ -84,6 +83,12 @@ app.get("/api/wallet-history/:address", async (req, res) => {
         const valueETH = parseFloat(transaction.value) / 1e18; // Convert wei to ether
         const valueUSD = valueETH * ethPriceUSD;
 
+        // Determine if the transaction is incoming or outgoing
+        const type =
+          transaction.from_address.toLowerCase() === address.toLowerCase()
+            ? "Outgoing"
+            : "Incoming";
+
         return {
           hash: transaction.hash,
           from: transaction.from_address,
@@ -93,20 +98,9 @@ app.get("/api/wallet-history/:address", async (req, res) => {
           gasETH: parseFloat(gasCostETH.toFixed(6)),
           gasUSD: parseFloat(gasCostUSD.toFixed(2)),
           timestamp: transaction.block_timestamp,
+          type: type,
         };
       });
-=======
-    if (response.data && response.data.result && response.data.result) {
-      processedData = response.data.result.map((transaction) => ({
-        hash: transaction.hash,
-        from: transaction.from_address,
-        to: transaction.to_address,
-        value: transaction.value,
-        gas: transaction.gas,
-        gasPrice: transaction.gas_price,
-        timestamp: transaction.block_timestamp,
-      }));
->>>>>>> 90db6e86940f7cdc28cd66684cb7ee3ef054bf13
     }
 
     console.log("Processed data:", JSON.stringify(processedData, null, 2));
