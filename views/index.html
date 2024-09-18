@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction History (24hr)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      h1 {
+        margin-bottom: 20px;
+      }
+      #search {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      input,
+      select,
+      button {
+        padding: 5px;
+        font-size: 16px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Transaction History (24hr)</h1>
+
+    <div id="search">
+      <select id="chainId">
+        <option value="1">Ethereum</option>
+        <option value="56">Binance Smart Chain</option>
+        <option value="137">Polygon</option>
+        <!-- Add more chains as needed -->
+      </select>
+      <input
+        type="text"
+        id="walletAddressInput"
+        placeholder="Enter wallet address"
+      />
+      <button onclick="searchTransactions()">Search Transactions</button>
+      <div id="loading" style="display: none">Loading...</div>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+      async function searchTransactions() {
+        const walletAddressInput =
+          document.getElementById("walletAddressInput");
+        const walletAddress = walletAddressInput.value.trim();
+
+        if (!walletAddress) {
+          console.error("Please enter a wallet address");
+          displayError("Please enter a wallet address");
+          return;
+        }
+
+        try {
+          displayLoading(true);
+          const response = await fetch(`/api/wallet-history/${walletAddress}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Failed to fetch transactions: ${errorData.error}`);
+          }
+          const data = await response.json();
+          console.log("API response:", data);
+
+          displayTransactions(data);
+        } catch (error) {
+          console.error("Error:", error.message);
+          displayError(error.message);
+        } finally {
+          displayLoading(false);
+        }
+      }
+
+      function displayTransactions(data) {
+        const resultDiv = document.getElementById("result");
+        if (data.transactions && data.transactions.length > 0) {
+          resultDiv.innerHTML = `
+            <h2>Transactions for ${data.address}</h2>
+            <p>Total transactions: ${data.transactionCount}</p>
+            <ul>
+              ${data.transactions
+                .map(
+                  (tx) => `
+                <li>
+                  Hash: ${tx.hash}<br>
+                  From: ${tx.from}<br>
+                  To: ${tx.to}<br>
+                  Value: ${tx.value}<br>
+                  Timestamp: ${tx.timestamp}
+                </li>
+              `
+                )
+                .join("")}
+            </ul>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p>No transactions found for address ${data.address}</p>`;
+        }
+      }
+
+      function displayError(message) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = `<p class="error">Error: ${message}</p>`;
+      }
+
+      function displayLoading(isLoading) {
+        const loadingDiv = document.getElementById("loading");
+        if (isLoading) {
+          loadingDiv.style.display = "block";
+        } else {
+          loadingDiv.style.display = "none";
+        }
+      }
+    </script>
+  </body>
+</html>
