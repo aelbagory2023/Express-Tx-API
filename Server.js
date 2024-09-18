@@ -71,6 +71,7 @@ app.get("/api/wallet-history/:address", async (req, res) => {
 
     // Process the data
     let processedData = [];
+<<<<<<< HEAD
     if (
       response.data &&
       response.data.result &&
@@ -94,6 +95,18 @@ app.get("/api/wallet-history/:address", async (req, res) => {
           timestamp: transaction.block_timestamp,
         };
       });
+=======
+    if (response.data && response.data.result && response.data.result) {
+      processedData = response.data.result.map((transaction) => ({
+        hash: transaction.hash,
+        from: transaction.from_address,
+        to: transaction.to_address,
+        value: transaction.value,
+        gas: transaction.gas,
+        gasPrice: transaction.gas_price,
+        timestamp: transaction.block_timestamp,
+      }));
+>>>>>>> 90db6e86940f7cdc28cd66684cb7ee3ef054bf13
     }
 
     console.log("Processed data:", JSON.stringify(processedData, null, 2));
