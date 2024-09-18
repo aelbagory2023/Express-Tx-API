@@ -112,9 +112,8 @@
                   Hash: ${tx.hash}<br>
                   From: ${tx.from}<br>
                   To: ${tx.to}<br>
-                  Value: ${tx.value} Wei<br>
-                  Gas: ${tx.gas}<br>
-                  Gas Price: ${tx.gasPrice} Wei<br>
+                  Value: ${tx.valueETH} ETH (${tx.valueUSD} USD)<br>
+                  Gas: ${tx.gasETH} ETH (${tx.gasUSD} USD)<br>
                   Timestamp: ${new Date(tx.timestamp).toLocaleString()}
                 </li>
               `

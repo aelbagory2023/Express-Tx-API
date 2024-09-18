@@ -7,6 +7,8 @@ const app = express();
 const axios = require("axios"); // Add this import
 require("dotenv").config();
 const moment = require("moment"); // Make sure to install this: npm install moment
+const CoinGecko = require("coingecko-api");
+const coinGeckoClient = new CoinGecko();
 
 // Middleware setup
 app.use(express.json()); // Parse JSON request bodies
@@ -60,18 +62,38 @@ app.get("/api/wallet-history/:address", async (req, res) => {
       JSON.stringify(response.data, null, 2)
     );
 
+    // Fetch current ETH price in USD
+    const ethPriceResponse = await coinGeckoClient.simple.price({
+      ids: ["ethereum"],
+      vs_currencies: ["usd"],
+    });
+    const ethPriceUSD = ethPriceResponse.data.ethereum.usd;
+
     // Process the data
     let processedData = [];
-    if (response.data && response.data.result && response.data.result) {
-      processedData = response.data.result.map((transaction) => ({
-        hash: transaction.hash,
-        from: transaction.from_address,
-        to: transaction.to_address,
-        value: transaction.value,
-        gas: transaction.gas,
-        gasPrice: transaction.gas_price,
-        timestamp: transaction.block_timestamp,
-      }));
+    if (
+      response.data &&
+      response.data.result &&
+      Array.isArray(response.data.result)
+    ) {
+      processedData = response.data.result.map((transaction) => {
+        const gasPrice = parseFloat(transaction.gas_price) / 1e18; // Convert wei to ether
+        const gasCostETH = gasPrice * parseFloat(transaction.gas);
+        const gasCostUSD = gasCostETH * ethPriceUSD;
+        const valueETH = parseFloat(transaction.value) / 1e18; // Convert wei to ether
+        const valueUSD = valueETH * ethPriceUSD;
+
+        return {
+          hash: transaction.hash,
+          from: transaction.from_address,
+          to: transaction.to_address,
+          valueETH: parseFloat(valueETH),
+          valueUSD: parseFloat(valueUSD.toFixed(2)),
+          gasETH: parseFloat(gasCostETH.toFixed(6)),
+          gasUSD: parseFloat(gasCostUSD.toFixed(2)),
+          timestamp: transaction.block_timestamp,
+        };
+      });
     }
 
     console.log("Processed data:", JSON.stringify(processedData, null, 2));
