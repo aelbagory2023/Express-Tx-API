@@ -37,15 +37,15 @@ app.get("/api/wallet-history/:address", async (req, res) => {
   try {
     console.log(`Fetching wallet history for address: ${address}`);
 
-    // Calculate the timestamp for 24 hours ago
-    const fromDate = moment().subtract(24, "hours").toDate();
+    const fromDate = moment().subtract(24, "hours");
     const fromTimestamp = fromDate.toISOString();
+    console.log("From timestamp:", fromTimestamp);
 
     const response = await axios.get(
       `https://deep-index.moralis.io/api/v2.2/${address}`,
       {
         params: {
-          chain: "eth", // or the appropriate chain
+          chain: "eth",
           from_date: fromTimestamp,
         },
         headers: {
@@ -62,21 +62,19 @@ app.get("/api/wallet-history/:address", async (req, res) => {
 
     // Process the data
     let processedData = [];
-    if (response.data && Array.isArray(response.data)) {
-      processedData = response.data
-        .filter((transaction) =>
-          moment(transaction.block_timestamp).isAfter(fromDate)
-        )
-        .map((transaction) => ({
-          hash: transaction.hash,
-          from: transaction.from_address,
-          to: transaction.to_address,
-          value: transaction.value,
-          gas: transaction.gas,
-          gasPrice: transaction.gas_price,
-          timestamp: transaction.block_timestamp,
-        }));
+    if (response.data && response.data.result && response.data.result) {
+      processedData = response.data.result.map((transaction) => ({
+        hash: transaction.hash,
+        from: transaction.from_address,
+        to: transaction.to_address,
+        value: transaction.value,
+        gas: transaction.gas,
+        gasPrice: transaction.gas_price,
+        timestamp: transaction.block_timestamp,
+      }));
     }
+
+    console.log("Processed data:", JSON.stringify(processedData, null, 2));
 
     res.json({
       address: address,
@@ -88,12 +86,10 @@ app.get("/api/wallet-history/:address", async (req, res) => {
       "Error fetching wallet history:",
       error.response?.data || error.message
     );
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch wallet history",
-        details: error.response?.data || error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch wallet history",
+      details: error.response?.data || error.message,
+    });
   }
 });
 

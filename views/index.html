@@ -77,7 +77,11 @@
 
         try {
           displayLoading(true);
-          const response = await fetch(`/api/wallet-history/${walletAddress}`);
+          // Add a timestamp to the URL to prevent caching
+          const timestamp = new Date().getTime();
+          const response = await fetch(
+            `/api/wallet-history/${walletAddress}?_=${timestamp}`
+          );
           if (!response.ok) {
             const errorData = await response.json();
             throw new Error(`Failed to fetch transactions: ${errorData.error}`);
@@ -108,8 +112,10 @@
                   Hash: ${tx.hash}<br>
                   From: ${tx.from}<br>
                   To: ${tx.to}<br>
-                  Value: ${tx.value}<br>
-                  Timestamp: ${tx.timestamp}
+                  Value: ${tx.value} Wei<br>
+                  Gas: ${tx.gas}<br>
+                  Gas Price: ${tx.gasPrice} Wei<br>
+                  Timestamp: ${new Date(tx.timestamp).toLocaleString()}
                 </li>
               `
                 )
