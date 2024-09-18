@@ -40,6 +40,12 @@
       th {
         background-color: #f2f2f2;
       }
+      .positive-change {
+        color: green;
+      }
+      .negative-change {
+        color: red;
+      }
     </style>
   </head>
   <body>
@@ -111,7 +117,9 @@
                   <th>From</th>
                   <th>To</th>
                   <th>Value (ETH)</th>
-                  <th>Value (USD)</th>
+                  <th>Value at Transaction (USD)</th>
+                  <th>Current Value (USD)</th>
+                  <th>Price Change</th>
                   <th>Gas (ETH)</th>
                   <th>Gas (USD)</th>
                   <th>Timestamp</th>
@@ -128,6 +136,14 @@
                       <td>${tx.to.substring(0, 10)}...</td>
                       <td>${tx.valueETH.toFixed(6)}</td>
                       <td>$${tx.valueUSD.toFixed(2)}</td>
+                      <td>$${tx.currentValueUSD.toFixed(2)}</td>
+                      <td class="${
+                        tx.priceChangeUSD >= 0
+                          ? "positive-change"
+                          : "negative-change"
+                      }">
+                        ${tx.priceChangeFormatted}
+                      </td>
                       <td>${tx.gasETH.toFixed(6)}</td>
                       <td>$${tx.gasUSD.toFixed(2)}</td>
                       <td>${new Date(tx.timestamp).toLocaleString()}</td>
