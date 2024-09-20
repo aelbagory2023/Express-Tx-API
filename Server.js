@@ -3,6 +3,7 @@ const Moralis = require("moralis");
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
+const solanaweb3 = require("@solana/web3.js");
 
 require("dotenv").config();
 
@@ -49,6 +50,37 @@ app.get("/api/wallet-history/:address/:chain", async (req, res) => {
     res.json(data); // Send the response as JSON to the client
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: "An error occurred while fetching data" });
+  }
+});
+
+app.get("/api/sol-Wallet-history/:address", async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    if (!address) {
+      return res.status(400).json({ error: "Address is a required parameter" });
+    }
+
+    const myHeaders = new Headers();
+    myHeaders.append("x-api-key", "ab9adsP2ivQCujdx");
+
+    const requestOptions = {
+      method: "GET",
+      headers: myHeaders,
+      redirect: "follow",
+    };
+
+    const response = await fetch(
+      `https://api.shyft.to/sol/v1/transaction/history?network=mainnet-beta&tx_num=100&account=${address}&enable_raw=true`,
+      requestOptions
+    );
+
+    const data = await response.json();
+    console.log(data); // Log the response to the console
+    res.json(data); // Send the response as JSON to the client
+  } catch (error) {
+    console.error("error", error);
     res.status(500).json({ error: "An error occurred while fetching data" });
   }
 });
