@@ -1,9 +1,87 @@
+/**
+ * @swagger
+ * /api/wallet-history/{address}/{chain}:
+ *   get:
+ *     summary: Retrieve wallet transaction history for Ethereum, Arbitrum, Base, and Solana
+ *     description: >
+ *       Get the transaction history for a specific wallet address on a given blockchain.
+ *       Supported chains: eth (Ethereum), arbitrum (Arbitrum), base (Base), solana (Solana)
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: >
+ *           The wallet address to fetch transactions for. Examples:
+ *           Ethereum: 0x28C6c06298d514Db089934071355E5743bf21d60,
+ *           Base: 0x4200000000000000000000000000000000000006,
+ *           Arbitrum: 0x489ee077994B6658eAfA855C308275EAd8097C4A
+ *       - in: path
+ *         name: chain
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [eth, arbitrum, base]
+ *         description: >
+ *           The blockchain to query (eth for Ethereum, arbitrum for Arbitrum, base for Base).
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hash:
+ *                         type: string
+ *                         description: Transaction hash
+ *                       from:
+ *                         type: string
+ *                         description: Sender's address
+ *                       to:
+ *                         type: string
+ *                         description: Recipient's address
+ *                       value:
+ *                         type: string
+ *                         description: Transaction value in native currency
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction timestamp
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+
 // Import required modules
 const Moralis = require("moralis");
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const solanaweb3 = require("@solana/web3.js");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
 
 require("dotenv").config();
 
@@ -13,8 +91,36 @@ const app = express();
 app.use(express.json()); // Parse JSON request bodies
 app.use(cors()); // Enable CORS for all routes
 
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    servers: [
+      {
+        url: "http://localhost:3000/",
+      },
+    ],
+    info: {
+      title: "Transaction history API for Shogun Telegram Bot",
+      version: "1.0.0",
+      description:
+        "API for retrieving wallet transaction history across multiple blockchains",
+    },
+  },
+  apis: ["./server.js"], // Path to the API docs
+};
+
+const spacs = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(spacs));
+
 // Define the server port
 const PORT = process.env.PORT || 3000;
+
+const SUPPORTED_CHAINS = {
+  eth: { name: "Ethereum", chainId: 1 },
+  arbitrum: { name: "Arbitrum", chainId: 42161 },
+  base: { name: "Base", chainId: 8453 },
+  solana: { name: "Solana", chainId: 101 },
+};
 
 const options = {
   method: "GET",
@@ -53,7 +159,70 @@ app.get("/api/wallet-history/:address/:chain", async (req, res) => {
     res.status(500).json({ error: "An error occurred while fetching data" });
   }
 });
-
+/**
+ * @swagger
+ * /api/sol-wallet-history/{address}:
+ *   get:
+ *     summary: Retrieve Solana wallet transaction history
+ *     description: >
+ *       Get the transaction history for a specific wallet address on the Solana blockchain.
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: >
+ *           The Solana wallet address to fetch transactions for.
+ *           Example: 5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hash:
+ *                         type: string
+ *                         description: Transaction hash
+ *                       from:
+ *                         type: string
+ *                         description: Sender's address
+ *                       to:
+ *                         type: string
+ *                         description: Recipient's address
+ *                       value:
+ *                         type: string
+ *                         description: Transaction value in native currency
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction timestamp
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
 app.get("/api/sol-Wallet-history/:address", async (req, res) => {
   try {
     const { address } = req.params;
