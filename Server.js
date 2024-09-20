@@ -2,7 +2,6 @@
 const Moralis = require("moralis");
 const express = require("express");
 const cors = require("cors");
-const { Connection, PublicKey } = require("@solana/web3.js");
 const fetch = require("node-fetch");
 
 require("dotenv").config();
@@ -16,22 +15,43 @@ app.use(cors()); // Enable CORS for all routes
 // Define the server port
 const PORT = process.env.PORT || 3000;
 
-// Initialize Moralis
-
-async function initializeMoralis() {
+const options = {
+  method: "GET",
+  headers: {
+    accept: "application/json",
+    "X-API-Key":
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYwNTljNWUyLTg5ZDMtNDBmNi04MzRkLWQ1NGY2MmU3M2RiMyIsIm9yZ0lkIjoiNDA4NjUxIiwidXNlcklkIjoiNDE5OTE2IiwidHlwZUlkIjoiZTIyNzk0ZmQtZWYxNy00YjMyLWE5MDItY2E3ZjUzZWNiZGQyIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjY1OTk1NDYsImV4cCI6NDg4MjM1OTU0Nn0.wFIhNrG2SDOfWl2hawVg0qvxLmekMdvzXJ00o3Nq1iw",
+  },
+};
+// Define a route to handle the API request
+app.get("/api/wallet-history/:address/:chain", async (req, res) => {
   try {
-    await Mralis.start({
-      apiKey:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYwNTljNWUyLTg5ZDMtNDBmNi04MzRkLWQ1NGY2MmU3M2RiMyIsIm9yZ0lkIjoiNDA4NjUxIiwidXNlcklkIjoiNDE5OTE2IiwidHlwZUlkIjoiZTIyNzk0ZmQtZWYxNy00YjMyLWE5MDItY2E3ZjUzZWNiZGQyIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjY1OTk1NDYsImV4cCI6NDg4MjM1OTU0Nn0.wFIhNrG2SDOfWl2hawVg0qvxLmekMdvzXJ00o3Nq1iw",
-    });
+    const { address, chain } = req.params;
 
-    const response = await Moralis.EvmApi.wallets.getWalletHistory({});
+    if (!address || !chain) {
+      return res
+        .status(400)
+        .json({ error: "Address and chain are required parameters" });
+    }
 
-    console.log(response.raw);
-  } catch (e) {
-    console.error(e);
+    const now = Math.floor(Date.now() / 1000); // Current Unix timestamp
+    const yesterday = now - 24 * 60 * 60; // Unix timestamp for 24 hours ago
+
+    const to_date = now;
+    const from_date = yesterday;
+
+    const response = await fetch(
+      `https://deep-index.moralis.io/api/v2.2/wallets/${address}/history?chain=${chain}&order=DESC&from_date=${from_date}&to_date=${to_date}`,
+      options
+    );
+    const data = await response.json();
+    console.log(data); // Log the response to the console
+    res.json(data); // Send the response as JSON to the client
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An error occurred while fetching data" });
   }
-}
+});
 
 // Start the server
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
