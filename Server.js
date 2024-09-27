@@ -1,166 +1,307 @@
+/**
+ * @swagger
+ * /api/wallet-history/{address}/{chain}:
+ *   get:
+ *     summary: Retrieve wallet transaction history for Ethereum, Arbitrum, Base, and Solana
+ *     description: >
+ *       Get the transaction history for a specific wallet address on a given blockchain.
+ *       Supported chains: eth (Ethereum), arbitrum (Arbitrum), base (Base), solana (Solana)
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: >
+ *           The wallet address to fetch transactions for. Examples:
+ *           Ethereum: 0x28C6c06298d514Db089934071355E5743bf21d60,
+ *           Base: 0x4200000000000000000000000000000000000006,
+ *           Arbitrum: 0x489ee077994B6658eAfA855C308275EAd8097C4A
+ *       - in: path
+ *         name: chain
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [eth, arbitrum, base]
+ *         description: >
+ *           The blockchain to query (eth for Ethereum, arbitrum for Arbitrum, base for Base).
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hash:
+ *                         type: string
+ *                         description: Transaction hash
+ *                       from:
+ *                         type: string
+ *                         description: Sender's address
+ *                       to:
+ *                         type: string
+ *                         description: Recipient's address
+ *                       value:
+ *                         type: string
+ *                         description: Transaction value in native currency
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction timestamp
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+
 // Import required modules
+const Moralis = require("moralis");
 const express = require("express");
 const cors = require("cors");
-const Moralis = require("moralis").default;
-const path = require("path");
-const app = express();
-const axios = require("axios"); // Add this import
+const fetch = require("node-fetch");
+const solanaweb3 = require("@solana/web3.js");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
+
 require("dotenv").config();
-const moment = require("moment"); // Make sure to install this: npm install moment
-const CoinGecko = require("coingecko-api");
-const coinGeckoClient = new CoinGecko();
+
+const app = express();
 
 // Middleware setup
 app.use(express.json()); // Parse JSON request bodies
+app.use(cors()); // Enable CORS for all routes
 
-// Define the server port
-// Use the environment variable PORT if available, otherwise default to 3000
+// Define Swagger options for API documentation
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0", // Specify the OpenAPI version
+    servers: [
+      {
+        url: "http://localhost:3000/", // Define the server URL
+      },
+    ],
+    info: {
+      title: "Transaction history API for Shogun Telegram Bot", // Set the API title
+      version: "1.0.0", // Set the API version
+      description:
+        "API for retrieving wallet transaction history across multiple blockchains", // Provide a description of the API
+    },
+  },
+  apis: ["./server.js"], // Specify the file(s) containing the API routes
+};
+
+// Generate Swagger specification
+const spacs = swaggerJsdoc(swaggerOptions);
+
+// Set up Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(spacs));
+
+// Define the server port, use environment variable if available, otherwise use 3000
 const PORT = process.env.PORT || 3000;
 
-// Define routes
-// Example route:
-app.get("/", async (req, res) => {
-  res.sendFile(__dirname + "/views/index.html");
+// Define supported blockchain networks and their details
+const SUPPORTED_CHAINS = {
+  eth: { name: "Ethereum", chainId: 1 },
+  arbitrum: { name: "Arbitrum", chainId: 42161 },
+  base: { name: "Base", chainId: 8453 },
+  solana: { name: "Solana", chainId: 101 },
+};
+
+// Define options for API requests
+const options = {
+  method: "GET", // Set the HTTP method to GET
+  headers: {
+    accept: "application/json", // Set the accepted response type to JSON
+    "X-API-Key":
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYwNTljNWUyLTg5ZDMtNDBmNi04MzRkLWQ1NGY2MmU3M2RiMyIsIm9yZ0lkIjoiNDA4NjUxIiwidXNlcklkIjoiNDE5OTE2IiwidHlwZUlkIjoiZTIyNzk0ZmQtZWYxNy00YjMyLWE5MDItY2E3ZjUzZWNiZGQyIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjY1OTk1NDYsImV4cCI6NDg4MjM1OTU0Nn0.wFIhNrG2SDOfWl2hawVg0qvxLmekMdvzXJ00o3Nq1iw", // Set the API key for authentication
+  },
+};
+
+// Define a route to handle wallet history requests
+app.get("/api/wallet-history/:address/:chain", async (req, res) => {
+  try {
+    const { address, chain } = req.params; // Extract address and chain from request parameters
+
+    // Validate inputs
+    if (!address || !chain) {
+      return res
+        .status(400)
+        .json({ error: "Address and chain are required parameters" }); // Return error if address or chain is missing
+    }
+
+    // Validate chain
+    if (!SUPPORTED_CHAINS[chain]) {
+      return res.status(400).json({
+        error:
+          "Invalid chain. Supported chains are: " +
+          Object.keys(SUPPORTED_CHAINS).join(", "), // Return error if chain is not supported
+      });
+    }
+
+    // Validate address format (basic check, can be improved for each chain)
+    const addressRegex = /^0x[a-fA-F0-9]{40}$/; // Regular expression for Ethereum-like addresses
+    if (!addressRegex.test(address)) {
+      return res.status(400).json({ error: "Invalid address format" }); // Return error if address format is invalid
+    }
+
+    const now = Math.floor(Date.now() / 1000); // Get current Unix timestamp
+    const yesterday = now - 24 * 60 * 60; // Calculate Unix timestamp for 24 hours ago
+    console.log(
+      `Retrieving wallet history for address: ${address} on the ${SUPPORTED_CHAINS[chain].name} network` // Log the retrieval attempt
+    );
+    const to_date = now; // Set end date for transaction history
+    const from_date = yesterday; // Set start date for transaction history
+
+    const response = await fetch(
+      `https://deep-index.moralis.io/api/v2.2/wallets/${address}/history?chain=${chain}&order=DESC&from_date=${from_date}&to_date=${to_date}`,
+      options // Make API request to Moralis for wallet history
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`); // Throw error if API response is not OK
+    }
+
+    const data = await response.json(); // Parse API response as JSON
+
+    res.json(data); // Send the parsed data as JSON response to the client
+  } catch (error) {
+    console.error(error); // Log any errors that occur
+    res.status(500).json({ error: "An error occurred while fetching data" }); // Send error response to client
+  }
 });
 
-// Moralis API setup
-const MORALIS_API_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjYwNTljNWUyLTg5ZDMtNDBmNi04MzRkLWQ1NGY2MmU3M2RiMyIsIm9yZ0lkIjoiNDA4NjUxIiwidXNlcklkIjoiNDE5OTE2IiwidHlwZUlkIjoiZTIyNzk0ZmQtZWYxNy00YjMyLWE5MDItY2E3ZjUzZWNiZGQyIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjY1OTk1NDYsImV4cCI6NDg4MjM1OTU0Nn0.wFIhNrG2SDOfWl2hawVg0qvxLmekMdvzXJ00o3Nq1iw";
+// Print success message to console
 
-if (!MORALIS_API_KEY) {
-  console.error("MORALIS_API_KEY is not set in the environment variables");
-  process.exit(1);
-}
-
-// API endpoint to fetch wallet history
-app.get("/api/wallet-history/:address", async (req, res) => {
-  const { address } = req.params;
-
+/**
+ * @swagger
+ * /api/sol-wallet-history/{address}:
+ *   get:
+ *     summary: Retrieve Solana wallet transaction history
+ *     description: >
+ *       Get the transaction history for a specific wallet address on the Solana blockchain.
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: >
+ *           The Solana wallet address to fetch transactions for.
+ *           Example: 5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hash:
+ *                         type: string
+ *                         description: Transaction hash
+ *                       from:
+ *                         type: string
+ *                         description: Sender's address
+ *                       to:
+ *                         type: string
+ *                         description: Recipient's address
+ *                       value:
+ *                         type: string
+ *                         description: Transaction value in native currency
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction timestamp
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+app.get("/api/sol-Wallet-history/:address", async (req, res) => {
   try {
-    console.log(`Fetching wallet history for address: ${address}`);
+    const { address } = req.params; // Extract address from request parameters
 
-    const fromDate = moment().subtract(24, "hours");
-    const fromTimestamp = fromDate.toISOString();
-    console.log("From timestamp:", fromTimestamp);
+    // Validate input: Check if address is provided and in correct format
+    if (!address) {
+      return res.status(400).json({ error: "Address is a required parameter" }); // Return error if address is missing
+    }
 
-    const response = await axios.get(
-      `https://deep-index.moralis.io/api/v2.2/${address}`,
-      {
-        params: {
-          chain: "eth",
-          from_date: fromTimestamp,
-        },
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": MORALIS_API_KEY,
-        },
-      }
+    // Validate Solana address format using a regular expression
+    const isValidSolanaAddress = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+    // Check if the address is valid
+    if (!isValidSolanaAddress) {
+      // If the address is not valid, return a 400 Bad Request response with an error message
+      return res.status(400).json({ error: "Invalid Solana address format" });
+    }
+
+    const myHeaders = new Headers(); // Create new headers object
+    myHeaders.append("x-api-key", "ab9adsP2ivQCujdx"); // Add API key to headers
+
+    const requestOptions = {
+      method: "GET", // Set request method to GET
+      headers: myHeaders, // Set headers for the request
+      redirect: "follow", // Set redirect behavior
+    };
+
+    const response = await fetch(
+      `https://api.shyft.to/sol/v1/transaction/history?network=mainnet-beta&tx_num=100&account=${address}&enable_raw=true`,
+      requestOptions // Make API request to Shyft for Solana transaction history
     );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`); // Throw error if API response is not OK
+    }
 
     console.log(
-      "Moralis API response:",
-      JSON.stringify(response.data, null, 2)
+      `Retrieving wallet history for address: ${address} on the Solana network` // Log the retrieval attempt
     );
-
-    // Fetch current ETH price in USD
-    const ethPriceResponse = await coinGeckoClient.simple.price({
-      ids: ["ethereum"],
-      vs_currencies: ["usd"],
-    });
-    const ethPriceUSD = ethPriceResponse.data.ethereum.usd;
-
-    // Process the data
-    let processedData = [];
-<<<<<<< HEAD
-    if (
-      response.data &&
-      response.data.result &&
-      Array.isArray(response.data.result)
-    ) {
-      processedData = response.data.result.map((transaction) => {
-        const gasPrice = parseFloat(transaction.gas_price) / 1e18; // Convert wei to ether
-        const gasCostETH = gasPrice * parseFloat(transaction.gas);
-        const gasCostUSD = gasCostETH * ethPriceUSD;
-        const valueETH = parseFloat(transaction.value) / 1e18; // Convert wei to ether
-        const valueUSD = valueETH * ethPriceUSD;
-
-        return {
-          hash: transaction.hash,
-          from: transaction.from_address,
-          to: transaction.to_address,
-          valueETH: parseFloat(valueETH),
-          valueUSD: parseFloat(valueUSD.toFixed(2)),
-          gasETH: parseFloat(gasCostETH.toFixed(6)),
-          gasUSD: parseFloat(gasCostUSD.toFixed(2)),
-          timestamp: transaction.block_timestamp,
-        };
-      });
-=======
-    if (response.data && response.data.result && response.data.result) {
-      processedData = response.data.result.map((transaction) => ({
-        hash: transaction.hash,
-        from: transaction.from_address,
-        to: transaction.to_address,
-        value: transaction.value,
-        gas: transaction.gas,
-        gasPrice: transaction.gas_price,
-        timestamp: transaction.block_timestamp,
-      }));
->>>>>>> 90db6e86940f7cdc28cd66684cb7ee3ef054bf13
-    }
-
-    console.log("Processed data:", JSON.stringify(processedData, null, 2));
-
-    res.json({
-      address: address,
-      transactionCount: processedData.length,
-      transactions: processedData,
-    });
+    const data = await response.json(); // Parse API response as JSON
+    console.log(data); // Log the response data to the console
+    res.json(data); // Send the parsed data as JSON response to the client
   } catch (error) {
-    console.error(
-      "Error fetching wallet history:",
-      error.response?.data || error.message
-    );
-    res.status(500).json({
-      error: "Failed to fetch wallet history",
-      details: error.response?.data || error.message,
-    });
+    console.error("error", error); // Log any errors that occur
+    res.status(500).json({ error: "An error occurred while fetching data" }); // Send error response to client
   }
 });
 
-const fetchAssets = async (address) => {
-  if (process.env.REACT_APP_MORALIS_API_KEY) {
-    try {
-      // Replace this URL with the actual API endpoint ${address}
-      const response = await fetch(
-        `https://deep-index.moralis.io/api/v2.2/wallets/${address}/history`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": process.env.MORALIS_API_KEY,
-          },
-        }
-      );
-      const data = await response.json();
-      console.log(data.result);
-      setAssets(data.result);
-    } catch (error) {
-      console.error("Error fetching assets:", error);
-    }
-  } else {
-    console.error("No Moralis API key in .env");
-  }
-};
-
-const handleInputChange = (e) => {
-  setAddress(e.target.value);
-};
-
-// Function to handle button click
-const handleButtonClick = () => {
-  fetchAssets(address);
-};
-
 // Start the server
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server listening on port ${PORT}`)); // Start the server and log the port it's listening on
