@@ -137,6 +137,177 @@ const options = {
   },
 };
 
+/**
+ * @swagger
+ * /api/ton-rates:
+ *   get:
+ *     summary: Retrieve TON rates for specified tokens and currencies
+ *     description: Fetches the current exchange rates for TON tokens against specified currencies
+ *     parameters:
+ *       - in: query
+ *         name: tokens
+ *         description: Comma-separated list of TON token symbols
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: currencies
+ *         description: Comma-separated list of currency codes
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: TON rates for the specified tokens and currencies
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 rates:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       token:
+ *                         type: string
+ *                       currency:
+ *                         type: string
+ *                       rate:
+ *                         type: number
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+app.get("/api/ton-rates", async (req, res) => {
+  try {
+    const { tokens, currencies } = req.query;
+    if (!tokens || !currencies) {
+      return res
+        .status(400)
+        .json({ error: "Tokens and currencies are required parameters" });
+    }
+    const response = await fetch(
+      `https://tonapi.io/v2/rates?tokens=${tokens}&currencies=${currencies}`,
+      options
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch TON rates" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/jettons-balances/{address}:
+ *   get:
+ *     summary: Get all Jettons balances by owner address
+ *     description: Fetches the balances of all Jettons owned by a specific address
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The address to fetch Jettons balances for
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 balances:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jetton:
+ *                         type: string
+ *                         description: Jetton symbol
+ *                       balance:
+ *                         type: number
+ *                         description: Balance of the Jetton
+ *                       currency:
+ *                         type: string
+ *                         description: Currency of the balance
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+app.get("/api/jettons-balances/:address", async (req, res) => {
+  try {
+    const { address } = req.params; // Extract address from request parameters
+
+    // Validate input: Check if address is provided and in correct format
+    if (!address) {
+      return res.status(400).json({ error: "Address is a required parameter" }); // Return error if address is missing
+    }
+
+    // Validate address format using a regular expression
+    const isValidAddress = /^[0-9a-zA-Z]+$/; // Simplified validation for demonstration
+    // Check if the address is valid
+    if (!isValidAddress.test(address)) {
+      // If the address is not valid, return a 400 Bad Request response with an error message
+      return res.status(400).json({ error: "Invalid address format" });
+    }
+
+    const response = await fetch(
+      `https://tonapi.io/v2/accounts/${address}/jettons?currencies=ton,usd`,
+      options
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`); // Throw error if API response is not OK
+    }
+
+    const data = await response.json(); // Parse API response as JSON
+
+    res.json(data); // Send the parsed data as JSON response to the client
+  } catch (error) {
+    console.error(error); // Log any errors that occur
+    res.status(500).json({ error: "Failed to fetch Jettons balances" }); // Send error response to client
+  }
+});
+
 // Define a route to handle wallet history requests
 app.get("/api/wallet-history/:address/:chain", async (req, res) => {
   try {
