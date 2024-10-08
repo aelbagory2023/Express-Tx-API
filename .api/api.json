@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "cielo-api",
+      "source": "@cielo-api/v1.0#7rsd24m152ogxi",
+      "integrity": "sha512-k/bjtGN2ccUrO2rtIZtj+idTwcPao8rj1woKIWTzZd7jBNJwZB+d4+oHScZN1hBRqDBP8N4q2CNOzAIco1s58g==",
+      "installerVersion": "6.1.2"
+    }
+  ]
+}

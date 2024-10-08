@@ -2,6 +2,8 @@
   "name": "Express-Tx-API",
   "version": "1.0.0",
   "dependencies": {
+    "@aave/protocol-js": "^4.3.0",
+    "@api/cielo-api": "file:.api/apis/cielo-api",
     "@moralisweb3/common-evm-utils": "^2.27.2",
     "@solana/web3.js": "^1.95.3",
     "axios": "^0.21.4",
