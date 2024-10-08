@@ -38,20 +38,28 @@ exports.getAddressPnl = async (req, res) => {
   try {
     const { address, start_date, end_date } = req.query;
     if (!address || !start_date || !end_date) {
-      return res.status(400).json({ error: "Address, start_date, and end_date are required parameters" });
+      return res
+        .status(400)
+        .json({
+          error: "Address, start_date, and end_date are required parameters",
+        });
     }
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({ error: "Invalid date format for start_date or end_date" });
+      return res
+        .status(400)
+        .json({ error: "Invalid date format for start_date or end_date" });
     }
-    const url = `https://api.nansen.ai/v1/address/pnl?address=${address}&start_date=${startDate.toISOString().split("T")[0]}&end_date=${endDate.toISOString().split("T")[0]}`;
-    
+    const url = `https://api.nansen.ai/v1/address/pnl?address=${address}&start_date=${
+      startDate.toISOString().split("T")[0]
+    }&end_date=${endDate.toISOString().split("T")[0]}`;
+
     const response = await fetch(url, {
       method: "GET",
-      headers: { accept: "application/json" }
+      headers: { accept: "application/json" },
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -65,7 +73,7 @@ exports.getAddressPnl = async (req, res) => {
 
 /**
  * @swagger
- * /api/pnl/token/{wallet}:
+ * /api/token/pnl/{wallet}:
  *   get:
  *     summary: Get token PNL
  *     parameters:
@@ -86,17 +94,19 @@ exports.getAddressPnl = async (req, res) => {
 exports.getTokenPnl = async (req, res) => {
   const { wallet } = req.params;
   if (!wallet) {
-    return res.status(400).json({ error: "Wallet address is a required parameter" });
+    return res
+      .status(400)
+      .json({ error: "Wallet address is a required parameter" });
   }
   const url = `https://feed-api.cielo.finance/api/v1/${wallet}/pnl/tokens`;
-  
+
   try {
     const response = await fetch(url, {
       method: "GET",
       headers: {
         accept: "application/json",
-        "X-API-KEY": process.env.CIELO_API_KEY
-      }
+        "X-API-KEY": process.env.CIELO_API_KEY,
+      },
     });
 
     if (!response.ok) {

@@ -30,16 +30,18 @@ exports.getTonRates = async (req, res) => {
   try {
     const { tokens, currencies } = req.query;
     if (!tokens || !currencies) {
-      return res.status(400).json({ error: "Tokens and currencies are required parameters" });
+      return res
+        .status(400)
+        .json({ error: "Tokens and currencies are required parameters" });
     }
+    // Check if the API endpoint is correct
     const response = await fetch(
       `https://tonapi.io/v2/rates?tokens=${tokens}&currencies=${currencies}`,
       {
         method: "GET",
         headers: {
           accept: "application/json",
-          "X-API-Key": process.env.TONAPI_API_KEY // Use environment variable
-        }
+        },
       }
     );
 
@@ -51,6 +53,16 @@ exports.getTonRates = async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to fetch TON rates" });
+    // If the error is a 404, provide a more specific error message
+    if (error.message.includes("404")) {
+      res
+        .status(404)
+        .json({
+          error:
+            "Resource not found. Please check the API endpoint and parameters.",
+        });
+    } else {
+      res.status(500).json({ error: "Failed to fetch TON rates" });
+    }
   }
 };

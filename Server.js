@@ -8,6 +8,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const walletRoutes = require("./routes/walletRoute"); // Import wallet routes
+const tonRatesRoutes = require("./routes/tonRatesRoute"); // Import the route
 
 const app = express();
 
@@ -42,6 +43,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 // Use wallet routes
 app.use("/api", walletRoutes); // Mount wallet routes
+
+// Mount ton rates route
+app.use("/api", tonRatesRoutes); // Mount the route
 
 // Start the server
 const PORT = process.env.PORT || 3000;
